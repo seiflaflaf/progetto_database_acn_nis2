@@ -1,0 +1,18 @@
+/progetto_database_acn_nis2/
+│
+├── .gitignore
+│
+├── README.txt
+│
+├── documentazione/
+│   ├── data_dictionary.md
+│   └── diagramma_ER.md
+│
+└── sql/
+    ├── 00_CREA_DB.sql
+    ├── 01_SCHEMA.sql
+    ├── 02_LOGICA_VISTA.sql
+    ├── 03_POPOLAMENTO_DATA.sql
+    ├── 04_REPORTS.sql
+    ├── 05_EXPORT_DATA_ACN_CSV.sql
+    └── CLEANUP.sql
