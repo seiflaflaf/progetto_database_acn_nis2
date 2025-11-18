@@ -5,7 +5,7 @@ Questo progetto contiene lo schema di un database PostgreSQL e gli script SQL ne
 Il progetto è diviso in due parti principali:
 
 1.  **`sql/`**: Contiene tutti gli script SQL per creare, popolare, interrogare ed esportare i dati del database. 
-2.  **`documentazione/`**: Contiene  il Data Dictionary e l'ER Diagram. 
+2.  **`documentazione/`**: Contiene le istruzioni di deploy (questo file) e il Diagramma ER. 
 
 ---
 
