@@ -1,11 +1,7 @@
 /progetto_database_acn_nis2/
 │
-├── .gitignore
-│
-├── README.txt
-│
 ├── documentazione/
-│   ├── data_dictionary.md
+|   ├── README.md
 │   └── diagramma_ER.md
 │
 └── sql/
