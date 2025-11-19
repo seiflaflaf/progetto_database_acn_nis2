@@ -1,17 +1,16 @@
 -- #################################################################
 -- # SCRIPT 04: QUERY DI ESTRAZIONE ACN
--- # Esegue le query di test per verificare i dati
+-- # Esegue le query di test per estrapolamento dati a video
 -- #################################################################
 
 \echo '--- QUERY 1: Report Asset Critici (dalla VIEW) ---'
--- Questa query testa la VIEW principale del report ACN.
--- (NOTA: La vista è hard-coded su azienda_id = 1, come definito in 02_LOGICA_VISTA.sql)
+-- Query che testa la VIEW principale del report ACN.
 SELECT * FROM report_asset_critici_acn; 
 
 ---
 
 \echo '--- QUERY 2: Elenco Dipendenze Critiche da Terzi (PER AZIENDA 3) ---'
--- Questa query testa il JOIN tra Servizi, Dipendenze e Fornitori,
+-- Query per testare il JOIN tra Servizi, Dipendenze e Fornitori,
 -- filtrando solo per le dipendenze con impatto 'Critico' per l'Azienda 3.
 SELECT
     S.nome_servizio AS "Servizio_Critico",
@@ -26,14 +25,14 @@ INNER JOIN
     FORNITORE_TERZO FT ON DT.fornitore_id = FT.fornitore_id
 WHERE
     DT.criticita_dipendenza = 'Critica'
-    AND S.azienda_id = 3 -- MODIFICATO: Filtro per isolare il report solo sull'Azienda 3 (Trasporti Nord)
+    AND S.azienda_id = 3 --Filtro per isolare il report solo sull'Azienda 3 (Trasporti Nord)
 ORDER BY
     S.nome_servizio;
 
 ---
 
-\echo '--- QUERY 3: Elenco Punti di Contatto ACN (PER AZIENDA 3) ---'
--- Questa query estrae solo i contatti ACN designati, filtrando per l'Azienda 3.
+\echo '--- QUERY 3: Elenco Punti di Contatto ACN (PER AZIENDA 2) ---'
+-- Query che estrae solo i contatti ACN designati, filtrando per l'Azienda 2.
 SELECT DISTINCT
     R.nome, 
     R.cognome, 
@@ -47,13 +46,11 @@ INNER JOIN
     AZIENDA A ON S.azienda_id = A.azienda_id
 WHERE
     R.contatto_acn = TRUE
-    AND S.azienda_id = 3; -- MODIFICATO: Filtro per isolare il report solo sull'Azienda 3 (Trasporti Nord)
+    AND S.azienda_id = ; -- Filtro per isolare il report solo sull'Azienda 2 (IT Solutions Srl)
 
----
---- NUOVE QUERY AGGIUNTE PER ANALISI GENERALE (Non Modificate)
----
 
 \echo '--- QUERY 4: Conteggio Asset Critici/Alti per Tipo di Azienda (TUTTE LE AZIENDE) ---'
+---Query per avere una visione aggregata del rischio in base alla classificazione ufficiale ACN dell'azienda
 SELECT
     A.profilo_acn AS "Profilo_ACN",
     COUNT(CASE WHEN AST.criticita = 'Critica' THEN 1 END) AS "Conta_Asset_Critici",
@@ -70,9 +67,9 @@ GROUP BY
 ORDER BY
     "Totale_Asset_Alti_Critici" DESC;
 
----
 
 \echo '--- QUERY 5: Asset e Servizi Dipendenti da Fornitori Critici (TUTTE LE AZIENDE) ---'
+---Query per l'analisi della Supply Chain e delle dipendenze da terze parti
 SELECT
     A.nome_azienda AS "Azienda",
     S.nome_servizio AS "Servizio_Dipendente",
@@ -96,9 +93,9 @@ WHERE
 ORDER BY
     A.nome_azienda, FT.nome_fornitore, S.nome_servizio;
 
----
 
 \echo '--- QUERY 6: Responsabili con Più Servizi Critici ---'
+---query per i responsabili interni relativi ai servizi critici
 SELECT
     R.nome || ' ' || R.cognome AS "Responsabile",
     R.email,

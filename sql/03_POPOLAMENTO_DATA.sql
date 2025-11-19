@@ -125,7 +125,7 @@ INSERT INTO ASSET (azienda_id, codice_asset, tipo, descrizione, localizzazione, 
 ON CONFLICT (codice_asset) DO NOTHING;
 
 
--- Popolamento SERVIZIO (Almeno 2 per Azienda)
+-- Popolamento SERVIZIO (impostate ameno 2 tipologie per azienda)
 INSERT INTO SERVIZIO (azienda_id, nome_servizio, descrizione, criticita_impatto, responsabile_id) VALUES
 -- ID 1-4: Azienda 1 (Idro Spa)
 (1, 'Servizio Transazioni Finanziarie', 'Gestione pagamenti clienti', 'Alto', 1), -- ID 1
@@ -307,4 +307,4 @@ INSERT INTO DIPENDENZA_TERZI (servizio_id, fornitore_id, criticita_dipendenza) V
 (37, 4, 'Importante') -- Gestione Clienti -> SecurNet
 ON CONFLICT (servizio_id, fornitore_id) DO NOTHING; 
 
-\echo 'Dati inseriti (o ignorati se già presenti).'
+\echo 'Dati inseriti (o ignorati se presenti).'
