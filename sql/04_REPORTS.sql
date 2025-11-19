@@ -46,7 +46,7 @@ INNER JOIN
     AZIENDA A ON S.azienda_id = A.azienda_id
 WHERE
     R.contatto_acn = TRUE
-    AND S.azienda_id = ; -- Filtro per isolare il report solo sull'Azienda 2 (IT Solutions Srl)
+    AND S.azienda_id = 2; -- Filtro per isolare il report solo sull'Azienda 2 (IT Solutions Srl)
 
 
 \echo '--- QUERY 4: Conteggio Asset Critici/Alti per Tipo di Azienda (TUTTE LE AZIENDE) ---'
