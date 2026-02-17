@@ -1,6 +1,6 @@
 
 -- #################################################################
--- # SCRIPT 00: CREA_DB (DDL) (Idempotente)
+-- # SCRIPT 00: CREA_DB (DDL) (Idempotente).
 -- # Creazione del database 'nis2_registro'
 -- # ESECUZIONE:
 -- # Questo script deve essere eseguito DOPO dopo essersi connessi
