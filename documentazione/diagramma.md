@@ -1,4 +1,4 @@
-%% Diagramma ER Aggiornato NIS2/ACN (Con Compliance)
+```mermaid
 erDiagram
     AZIENDA {
         int azienda_id PK
@@ -24,7 +24,7 @@ erDiagram
         string tipo
         string criticita "CHECK"
     }
-    
+
     %% --- NUOVA SEZIONE FRAMEWORK ACN ---
     ACN_FUNZIONE {
         int funzione_id PK
@@ -87,7 +87,7 @@ erDiagram
     %% Relazioni Framework ACN (Nuove)
     ACN_FUNZIONE ||--|{ ACN_CATEGORIA : "contiene"
     ACN_CATEGORIA ||--|{ ACN_SOTTOCATEGORIA : "definisce"
-    
+
     %% Relazione di Compliance (Il cuore del progetto)
     ASSET ||--o{ ASSET_COMPLIANCE : "è verificato su"
     ACN_SOTTOCATEGORIA ||--o{ ASSET_COMPLIANCE : "determina regola per"
@@ -97,5 +97,5 @@ erDiagram
     ASSET ||--o{ SERVIZIO_ASSET : "supporta"
     SERVIZIO ||--o{ DIPENDENZA_TERZI : "dipende da"
     FORNITORE_TERZO ||--o{ DIPENDENZA_TERZI : "fornisce"
-    
+
     ASSET ||--o{ ASSET_STORICO : "logga"
