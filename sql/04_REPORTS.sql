@@ -49,10 +49,10 @@ WHERE
     AND S.azienda_id = 2; -- Filtro per isolare il report solo sull'Azienda 2 (IT Solutions Srl)
 
 
-\echo '--- QUERY 4: Conteggio Asset Critici/Alti per Tipo di Azienda (TUTTE LE AZIENDE) ---'
----Query per avere una visione aggregata del rischio in base alla classificazione ufficiale ACN dell'azienda
+\echo '--- QUERY 4: Conteggio Asset Critici/Alti per Tipo di Azienda ---'
+-- [AGGIORNATA] Corretto 'profilo_acn' in 'profilo_target' come da nuovo schema
 SELECT
-    A.profilo_acn AS "Profilo_ACN",
+    A.profilo_target AS "Profilo_Obiettivo_ACN",
     COUNT(CASE WHEN AST.criticita = 'Critica' THEN 1 END) AS "Conta_Asset_Critici",
     COUNT(CASE WHEN AST.criticita = 'Alta' THEN 1 END) AS "Conta_Asset_Alti",
     COUNT(AST.asset_id) AS "Totale_Asset_Alti_Critici"
@@ -63,7 +63,7 @@ INNER JOIN
 WHERE
     AST.criticita IN ('Alta', 'Critica')
 GROUP BY
-    A.profilo_acn
+    A.profilo_target
 ORDER BY
     "Totale_Asset_Alti_Critici" DESC;
 
@@ -113,3 +113,22 @@ GROUP BY
     R.responsabile_id, R.nome, R.cognome, R.email, A.nome_azienda
 ORDER BY
     "Numero_Servizi_Critici_Alti" DESC, "Responsabile" ASC;
+
+    \echo '--- QUERY 7: GAP ANALYSIS (Asset Non Conformi alla Normativa) ---'
+-- Questa query dimostra l'associazione Asset-Controlli richiesta dal docente
+SELECT * FROM report_gap_analysis_acn 
+WHERE stato_conformita = 'Non Conforme';
+
+\echo '--- QUERY 8: Statistiche di Conformità per Funzione ACN ---'
+-- Mostra quanto l'azienda è "coperta" sulle funzioni Identify, Protect, etc.
+SELECT 
+    F.nome AS "Funzione_ACN",
+    COUNT(C.compliance_id) AS "Controlli_Verificati",
+    COUNT(CASE WHEN C.stato_conformita = 'Conforme' THEN 1 END) AS "Conformi",
+    COUNT(CASE WHEN C.stato_conformita = 'Non Conforme' THEN 1 END) AS "NON_Conformi"
+FROM ACN_FUNZIONE F
+JOIN ACN_CATEGORIA CAT ON F.funzione_id = CAT.funzione_id
+JOIN ACN_SOTTOCATEGORIA S ON CAT.categoria_id = S.categoria_id
+JOIN ASSET_COMPLIANCE C ON S.sottocategoria_id = C.sottocategoria_id
+GROUP BY F.nome
+ORDER BY F.nome;
