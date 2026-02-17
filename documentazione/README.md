@@ -62,7 +62,11 @@ Dopo il popolamento, puoi eseguire lo script `04_REPORTS.sql` per verificare che
 
 ## 📊 Esportazione del Report ACN (CSV)
 
-Per generare il file CSV con l'elenco degli asset critici, esegui lo script di esportazione. Questo script usa il comando `\copy` di psql per generare il report. 
+Genera due report ufficiali in formato CSV:
+1.  **`asset_critici_acn.csv`**: Inventario degli asset critici.
+2.  **`gap_analysis_acn.csv`**: Dettaglio della conformità rispetto ai controlli ACN.
+
+Questo script usa il comando `\copy` di psql per generare il report. 
 * Esegui lo script di esportazione
 **`psql -h 127.0.0.1 -U postgres -W -d nis2_registro -f sql/05_EXPORT_DATA_ACN_CSV.sql`**
 
@@ -86,6 +90,8 @@ _Nota: Dovrai modificare il percorso di output **(C:/export/asset_critici_acn.cs
 ### 2. Considerazioni
 
   * **Progettazione della Vista (View) non Scalabile:** La vista principale **`report_asset_critici_acn`** (nello script `02_LOGICA_VISTA.sql`) contiene un filtro "hard-coded" (`WHERE A.azienda_id = 1`).
+
+  * **Framework ACN:** La struttura delle tabelle ACN (`ACN_FUNZIONE` -> `CATEGORIA` -> `SOTTOCATEGORIA`) rispecchia la gerarchia del Framework Nazionale per la Cybersecurity, permettendo un mapping preciso dei controlli.
 
   * **Ottimizzazione degli Indici (Performance):** L'indice **`idx_asset_codice_critico`** (su `ASSET` (codice_asset, criticita)) non è ottimizzato per la query che dovrebbe supportare.
 
