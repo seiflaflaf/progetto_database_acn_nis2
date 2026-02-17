@@ -1,15 +1,16 @@
 -- #################################################################
 -- # SCRIPT 03: POPOLAMENTO DATI (DML) (Idempotente)
--- # Dati di test espansi a 15 Aziende, con Asset e Servizi collegati
+-- # Dati di test estesi (15 Aziende) + Framework ACN e Compliance
 -- #################################################################
-\echo 'Inserimento dati di test (con verifica di duplicazione)...'
+\echo 'Inserimento dati di test...'
 
 ---
--- TABELLE DI LIVELLO 0 (ANAGRAFICHE)
+-- 1. TABELLE DI LIVELLO 0 (ANAGRAFICHE BASE)
 ---
 
 -- Popolamento AZIENDA (15 record)
-INSERT INTO AZIENDA (nome_azienda, profilo_acn) VALUES 
+-- NOTA: La colonna 'profilo_acn' è stata rinominata 'profilo_target' nel nuovo schema
+INSERT INTO AZIENDA (nome_azienda, profilo_target) VALUES 
 ('Idro Spa', 'IMPORTANT'),         -- ID 1
 ('IT Solutions Srl','ESSENTIALS'), -- ID 2
 ('Trasporti Nord S.p.A.', 'IMPORTANT'), -- ID 3
@@ -27,105 +28,226 @@ INSERT INTO AZIENDA (nome_azienda, profilo_acn) VALUES
 ('Logistica Veloce S.r.l.', 'IMPORTANT') -- ID 15
 ON CONFLICT (nome_azienda) DO NOTHING;
 
--- Popolamento RESPONSABILE (Rimane invariato per semplicità di mapping)
+-- Popolamento RESPONSABILE
 INSERT INTO RESPONSABILE (nome, cognome, ruolo_interno, contatto_acn, email) VALUES
-('Giulia', 'Rossi', 'CISO', TRUE, 'giulia.rossi@idrospa.it'), -- ID 1
-('Marco', 'Bianchi', 'IT Manager', FALSE, 'marco.bianchi@idrospa.it'), -- ID 2
-('Laura', 'Verdi', 'Responsabile Operazioni', FALSE, 'laura.verdi@idrospa.it'), -- ID 3
-('Paolo', 'Neri', 'Responsabile HR', FALSE, 'paolo.neri@idrospa.it'), -- ID 4
-('Elena', 'Gialli', 'IT Manager', FALSE, 'elena.gialli@itsolutionssrl.it'), -- ID 5
-('Luca', 'Neri', 'CISO', TRUE, 'luca.bini@itsolutionssrl.it') -- ID 6
+('Giulia', 'Rossi', 'CISO', TRUE, 'giulia.rossi@idrospa.it'),
+('Marco', 'Bianchi', 'IT Manager', FALSE, 'marco.bianchi@idrospa.it'),
+('Laura', 'Verdi', 'Responsabile Operazioni', FALSE, 'laura.verdi@idrospa.it'),
+('Paolo', 'Neri', 'Responsabile HR', FALSE, 'paolo.neri@idrospa.it'),
+('Elena', 'Gialli', 'IT Manager', FALSE, 'elena.gialli@itsolutionssrl.it'),
+('Luca', 'Neri', 'CISO', TRUE, 'luca.bini@itsolutionssrl.it')
 ON CONFLICT (email) DO NOTHING;
 
--- Popolamento FORNITORE_TERZO (Rimane invariato)
+-- Popolamento FORNITORE_TERZO
 INSERT INTO FORNITORE_TERZO (nome_fornitore, tipo_servizio) VALUES
-('CloudGlobal Corp.', 'Cloud IaaS'),       -- ID 1
-('IT Assistenza Srl', 'Manutenzione Applicativa'), -- ID 2
-('ISP Veloce Spa', 'Connettività Internet'),       -- ID 3
-('SecurNet Spa', 'Servizi SOC/MDR'),             -- ID 4
-('DataStorage Inc.', 'Cloud Backup S3')           -- ID 5
+('CloudGlobal Corp.', 'Cloud IaaS'),
+('IT Assistenza Srl', 'Manutenzione Applicativa'),
+('ISP Veloce Spa', 'Connettività Internet'),
+('SecurNet Spa', 'Servizi SOC/MDR'),
+('DataStorage Inc.', 'Cloud Backup S3')
 ON CONFLICT (nome_fornitore) DO NOTHING;
 
 ---
--- TABELLE DI LIVELLO 1 (DATI PRINCIPALI)
+-- [NUOVO] 2. FRAMEWORK NAZIONALE ACN (Livello Normativo)
 ---
+\echo 'Inserimento struttura Framework Nazionale...'
 
--- Popolamento ASSET (3 o 4 per Azienda)
+-- Funzioni (Identify, Protect, Detect, Respond, Recover)
+INSERT INTO ACN_FUNZIONE (codice, nome) VALUES 
+('ID', 'Identify (Identificare)'),
+('PR', 'Protect (Proteggere)'),
+('DE', 'Detect (Rilevare)'),
+('RS', 'Respond (Rispondere)'),
+('RC', 'Recover (Recuperare)')
+ON CONFLICT (codice) DO NOTHING;
+
+-- Categorie (Esempi principali)
+INSERT INTO ACN_CATEGORIA (funzione_id, codice, nome) VALUES 
+((SELECT funzione_id FROM ACN_FUNZIONE WHERE codice='ID'), 'ID.AM', 'Asset Management'),
+((SELECT funzione_id FROM ACN_FUNZIONE WHERE codice='ID'), 'ID.RA', 'Risk Assessment'),
+((SELECT funzione_id FROM ACN_FUNZIONE WHERE codice='PR'), 'PR.AC', 'Identity & Access Control'),
+((SELECT funzione_id FROM ACN_FUNZIONE WHERE codice='PR'), 'PR.DS', 'Data Security'),
+((SELECT funzione_id FROM ACN_FUNZIONE WHERE codice='PR'), 'PR.PT', 'Protezione Tecnologica (Patching)'),
+((SELECT funzione_id FROM ACN_FUNZIONE WHERE codice='DE'), 'DE.AE', 'Anomalies & Events')
+ON CONFLICT (codice) DO NOTHING;
+
+-- Sottocategorie / Controlli (I requisiti specifici)
+INSERT INTO ACN_SOTTOCATEGORIA (categoria_id, codice, descrizione, livello_minimo) VALUES 
+-- ID.AM (Asset Management)
+((SELECT categoria_id FROM ACN_CATEGORIA WHERE codice='ID.AM'), 'ID.AM-1', 'Inventario completo degli asset fisici e logici', 'Base'),
+((SELECT categoria_id FROM ACN_CATEGORIA WHERE codice='ID.AM'), 'ID.AM-2', 'Mappatura dei flussi di dati e comunicazioni', 'Importante'),
+-- PR.AC (Access Control)
+((SELECT categoria_id FROM ACN_CATEGORIA WHERE codice='PR.AC'), 'PR.AC-1', 'Gestione centralizzata delle identità (IAM)', 'Essenziale'),
+((SELECT categoria_id FROM ACN_CATEGORIA WHERE codice='PR.AC'), 'PR.AC-5', 'Autenticazione Multi-Fattore (MFA) obbligatoria', 'Importante'),
+-- PR.DS (Data Security)
+((SELECT categoria_id FROM ACN_CATEGORIA WHERE codice='PR.DS'), 'PR.DS-1', 'Crittografia dei dati a riposo (Encryption at rest)', 'Essenziale'),
+((SELECT categoria_id FROM ACN_CATEGORIA WHERE codice='PR.DS'), 'PR.DS-2', 'Crittografia dei dati in transito', 'Base'),
+-- PR.PT (Patching)
+((SELECT categoria_id FROM ACN_CATEGORIA WHERE codice='PR.PT'), 'PR.PT-1', 'Policy di aggiornamento e patching automatico', 'Essenziale'),
+-- DE.AE (Logging)
+((SELECT categoria_id FROM ACN_CATEGORIA WHERE codice='DE.AE'), 'DE.AE-1', 'Raccolta centralizzata dei log di sicurezza', 'Importante')
+ON CONFLICT DO NOTHING;
+
+
+---
+-- 3. ASSET (INVENTARIO)
+---
+\echo 'Inserimento Asset...'
+
 INSERT INTO ASSET (azienda_id, codice_asset, tipo, descrizione, localizzazione, criticita) VALUES
--- Azienda 1 (Idro Spa) - (4 Asset)
-(1, 'FW-PRD-01', 'Firewall Hardware', 'Firewall di Produzione Primario', 'DC A', 'Critica'), -- ID 1
-(1, 'SRV-ERP-01', 'Server Fisico', 'Server ERP gestionale', 'DC A', 'Alta'), -- ID 2
-(1, 'SW-HR-03', 'Applicazione Software', 'Software Gestione Risorse Umane', 'Cloud', 'Media'), -- ID 3
-(1, 'NAS-BCK-02', 'Dispositivo Storage', 'Storage per Backup Dati', 'DC B', 'Bassa'), -- ID 4
-(1, 'SRV-WEB-01', 'Server Virtuale', 'Web Server E-commerce', 'Cloud', 'Alta'), -- ID 5 - (Aggiunto 5° per coerenza con l'originale, anche se ne avevo promessi 4)
-(1, 'SW-CRM-01', 'Applicazione Software', 'Piattaforma CRM Clienti', 'Cloud', 'Media'), -- ID 6
--- Azienda 2 (IT Solutions Srl) - (4 Asset)
-(2, 'FW-BETA-01', 'Firewall Hardware', 'Firewall Perimetrale Sede', 'Ufficio Beta', 'Critica'), -- ID 7
-(2, 'SRV-DC-01', 'Server Fisico', 'Domain Controller Sede Beta', 'Ufficio Beta', 'Alta'), -- ID 8
-(2, 'SRV-FILE-01', 'Server Fisico', 'File Server Interno', 'Ufficio Beta', 'Media'), -- ID 9
-(2, 'NAS-BETA-BCK', 'Dispositivo Storage', 'Storage Backup Locale', 'Ufficio Beta', 'Media'), -- ID 10
--- Azienda 3 (Trasporti Nord) - (3 Asset)
-(3, 'SRV-LOG-01', 'Server Virtuale', 'Sistema Logistica e Flotta', 'Cloud Esterno', 'Critica'), -- ID 11
-(3, 'GPS-R-01', 'Dispositivo IoT', 'Server di Tracking GPS', 'DC Principale', 'Alta'), -- ID 12
-(3, 'DB-FLEET-02', 'Database', 'Archivio Dati Flotta', 'Cloud Esterno', 'Alta'), -- ID 13
--- Azienda 4 (Energy Power) - (4 Asset)
-(4, 'SCADA-CTRL-01', 'Sistema Industriale', 'Controllo Rete Elettrica', 'Centrale 1', 'Critica'), -- ID 14
-(4, 'FW-OT-02', 'Firewall Industriale', 'Protezione Rete OT', 'Centrale 2', 'Critica'), -- ID 15
-(4, 'WEB-PORTAL-01', 'Server Virtuale', 'Portale Clienti', 'DC Secondario', 'Media'), -- ID 16
-(4, 'SRV-BILLING', 'Server Fisico', 'Sistema Fatturazione', 'DC Secondario', 'Alta'), -- ID 17
--- Azienda 5 (Pharma Life) - (3 Asset)
-(5, 'SRV-LAB-01', 'Server Fisico', 'Gestione Dati Clinici', 'Laboratorio Principale', 'Critica'), -- ID 18
-(5, 'AP-R&D', 'Applicazione Software', 'Software Ricerca & Sviluppo', 'Cloud', 'Alta'), -- ID 19
-(5, 'NAS-ARCH-01', 'Dispositivo Storage', 'Archivio Legale', 'Sede', 'Bassa'), -- ID 20
--- Azienda 6 (Global Manufacturing) - (4 Asset)
-(6, 'MES-PRD-01', 'Sistema Industriale', 'Manufacturing Execution System', 'Impianto A', 'Critica'), -- ID 21
-(6, 'FW-DMZ-01', 'Firewall', 'DMZ per Connessioni Partner', 'Impianto B', 'Alta'), -- ID 22
-(6, 'SW-CAD', 'Applicazione Software', 'Software CAD/CAM', 'Sede Tech', 'Media'), -- ID 23
-(6, 'SRV-CAT-01', 'Server Virtuale', 'Catalogo Prodotti Online', 'Cloud', 'Media'), -- ID 24
--- Azienda 7 (Comune di Alpha) - (3 Asset)
-(7, 'SRV-ANAG-01', 'Server Fisico', 'Anagrafe Cittadini', 'Ufficio Centrale', 'Critica'), -- ID 25
-(7, 'WEB-SERVIZI', 'Web Server', 'Portale Servizi ai Cittadini', 'DC Comune', 'Alta'), -- ID 26
-(7, 'FW-PA-01', 'Firewall', 'Protezione Perimetro', 'Ufficio Centrale', 'Alta'), -- ID 27
--- Azienda 8 (Clinica Beta) - (4 Asset)
-(8, 'DB-PAZIENTI', 'Database', 'Cartelle Cliniche Elettroniche (EHR)', 'DC Clinica', 'Critica'), -- ID 28
-(8, 'FW-HOSP-01', 'Firewall', 'Rete Ospedaliera', 'DC Clinica', 'Critica'), -- ID 29
-(8, 'SRV-IMAGING', 'Server Fisico', 'Archiviazione Immagini Mediche (PACS)', 'DC Clinica', 'Alta'), -- ID 30
-(8, 'SW-APP-03', 'Applicazione Software', 'Gestione Prenotazioni', 'Cloud', 'Media'), -- ID 31
--- Azienda 9 (Media Digital S.p.A.) - (3 Asset)
-(9, 'SRV-STREAM-01', 'Server Virtuale', 'Piattaforma Streaming Video', 'Cloud CDN', 'Alta'), -- ID 32
-(9, 'DB-CONTENUTI', 'Database', 'Metadata Contenuti', 'Cloud', 'Alta'), -- ID 33
-(9, 'NAS-EDIT-01', 'Dispositivo Storage', 'Storage Editing Video', 'Sede Redazione', 'Media'), -- ID 34
--- Azienda 10 (Web Hosting Pro S.r.l.) - (4 Asset)
-(10, 'FW-CORE-01', 'Firewall Hardware', 'Core Network Protection', 'DC Principal', 'Critica'), -- ID 35
-(10, 'SRV-WEB-FARM', 'Server Fisico', 'Server Farm di Hosting', 'DC Principal', 'Critica'), -- ID 36
-(10, 'SW-PANEL-C', 'Applicazione Software', 'Pannello di Controllo Clienti', 'Cloud', 'Alta'), -- ID 37
-(10, 'SRV-EMAIL-01', 'Server Virtuale', 'Server Posta Elettronica', 'DC Secondario', 'Alta'), -- ID 38
--- Azienda 11 (Food Supply Chain Srl) - (3 Asset)
-(11, 'SRV-MAG-01', 'Server Fisico', 'Sistema Gestione Magazzino (WMS)', 'Magazzino Centrale', 'Critica'), -- ID 39
-(11, 'SCANNER-RF', 'Dispositivo IoT', 'Lettori Barcode/RFID', 'Magazzino Centrale', 'Media'), -- ID 40
-(11, 'SW-QUAL-01', 'Applicazione Software', 'Controllo Qualità', 'Sede Uff.', 'Alta'), -- ID 41
--- Azienda 12 (Finanza Sicura S.p.A.) - (4 Asset)
-(12, 'DB-TRANSACT', 'Database', 'Transazioni Finanziarie', 'DC Cifrato', 'Critica'), -- ID 42
-(12, 'FW-BANK-01', 'Firewall Hardware', 'Rete Bancaria', 'DC Cifrato', 'Critica'), -- ID 43
-(12, 'SRV-TRADING', 'Server Fisico', 'Piattaforma Trading', 'DC Cifrato', 'Alta'), -- ID 44
-(12, 'SW-RISK', 'Applicazione Software', 'Analisi Rischio', 'Cloud Esterno', 'Alta'), -- ID 45
--- Azienda 13 (Acqua Bene Comune) - (3 Asset)
-(13, 'SCADA-WATER', 'Sistema Industriale', 'Controllo Impianti Idrici', 'Impianto A', 'Critica'), -- ID 46
-(13, 'SRV-GIS', 'Server Virtuale', 'Mappatura Rete', 'DC Sede', 'Alta'), -- ID 47
-(13, 'FW-TELE-01', 'Firewall Industriale', 'Rete Telecontrollo', 'Impianto B', 'Critica'), -- ID 48
--- Azienda 14 (Aero Tecnica S.p.A.) - (4 Asset)
-(14, 'SRV-MANUT-01', 'Server Fisico', 'Sistema Gestione Manutenzione (MRO)', 'Hangar 1', 'Critica'), -- ID 49
-(14, 'DB-AIRCRAFT', 'Database', 'Dati Componenti Aerei', 'Cloud Sicuro', 'Alta'), -- ID 50
-(14, 'SW-CERT-01', 'Applicazione Software', 'Certificazioni Aeronavigabilità', 'Sede Tech', 'Critica'), -- ID 51
-(14, 'NAS-PROJ-01', 'Dispositivo Storage', 'Disegni Tecnici', 'Sede Progettazione', 'Media'), -- ID 52
--- Azienda 15 (Logistica Veloce S.r.l.) - (3 Asset)
-(15, 'SRV-ORDINI-01', 'Server Fisico', 'Elaborazione Ordini', 'DC Esterno', 'Alta'), -- ID 53
-(15, 'FW-LGST-01', 'Firewall', 'Perimetro Logistico', 'DC Esterno', 'Alta'), -- ID 54
-(15, 'DB-CLIENTI', 'Database', 'Anagrafica Clienti B2B', 'DC Esterno', 'Media') -- ID 55
+-- Azienda 1 (Idro Spa)
+(1, 'FW-PRD-01', 'Firewall Hardware', 'Firewall di Produzione Primario', 'DC A', 'Critica'),
+(1, 'SRV-ERP-01', 'Server Fisico', 'Server ERP gestionale', 'DC A', 'Alta'),
+(1, 'SW-HR-03', 'Applicazione Software', 'Software Gestione Risorse Umane', 'Cloud', 'Media'),
+(1, 'NAS-BCK-02', 'Dispositivo Storage', 'Storage per Backup Dati', 'DC B', 'Bassa'),
+(1, 'SRV-WEB-01', 'Server Virtuale', 'Web Server E-commerce', 'Cloud', 'Alta'),
+(1, 'SW-CRM-01', 'Applicazione Software', 'Piattaforma CRM Clienti', 'Cloud', 'Media'),
+-- Azienda 2 (IT Solutions Srl)
+(2, 'FW-BETA-01', 'Firewall Hardware', 'Firewall Perimetrale Sede', 'Ufficio Beta', 'Critica'),
+(2, 'SRV-DC-01', 'Server Fisico', 'Domain Controller Sede Beta', 'Ufficio Beta', 'Alta'),
+(2, 'SRV-FILE-01', 'Server Fisico', 'File Server Interno', 'Ufficio Beta', 'Media'),
+(2, 'NAS-BETA-BCK', 'Dispositivo Storage', 'Storage Backup Locale', 'Ufficio Beta', 'Media'),
+-- Azienda 3 (Trasporti Nord)
+(3, 'SRV-LOG-01', 'Server Virtuale', 'Sistema Logistica e Flotta', 'Cloud Esterno', 'Critica'),
+(3, 'GPS-R-01', 'Dispositivo IoT', 'Server di Tracking GPS', 'DC Principale', 'Alta'),
+(3, 'DB-FLEET-02', 'Database', 'Archivio Dati Flotta', 'Cloud Esterno', 'Alta'),
+-- Azienda 4 (Energy Power)
+(4, 'SCADA-CTRL-01', 'Sistema Industriale', 'Controllo Rete Elettrica', 'Centrale 1', 'Critica'),
+(4, 'FW-OT-02', 'Firewall Industriale', 'Protezione Rete OT', 'Centrale 2', 'Critica'),
+(4, 'WEB-PORTAL-01', 'Server Virtuale', 'Portale Clienti', 'DC Secondario', 'Media'),
+(4, 'SRV-BILLING', 'Server Fisico', 'Sistema Fatturazione', 'DC Secondario', 'Alta'),
+-- Azienda 5 (Pharma Life)
+(5, 'SRV-LAB-01', 'Server Fisico', 'Gestione Dati Clinici', 'Laboratorio Principale', 'Critica'),
+(5, 'AP-R&D', 'Applicazione Software', 'Software Ricerca & Sviluppo', 'Cloud', 'Alta'),
+(5, 'NAS-ARCH-01', 'Dispositivo Storage', 'Archivio Legale', 'Sede', 'Bassa'),
+-- Azienda 6 (Global Manufacturing)
+(6, 'MES-PRD-01', 'Sistema Industriale', 'Manufacturing Execution System', 'Impianto A', 'Critica'),
+(6, 'FW-DMZ-01', 'Firewall', 'DMZ per Connessioni Partner', 'Impianto B', 'Alta'),
+(6, 'SW-CAD', 'Applicazione Software', 'Software CAD/CAM', 'Sede Tech', 'Media'),
+(6, 'SRV-CAT-01', 'Server Virtuale', 'Catalogo Prodotti Online', 'Cloud', 'Media'),
+-- Azienda 7 (Comune di Alpha)
+(7, 'SRV-ANAG-01', 'Server Fisico', 'Anagrafe Cittadini', 'Ufficio Centrale', 'Critica'),
+(7, 'WEB-SERVIZI', 'Web Server', 'Portale Servizi ai Cittadini', 'DC Comune', 'Alta'),
+(7, 'FW-PA-01', 'Firewall', 'Protezione Perimetro', 'Ufficio Centrale', 'Alta'),
+-- Azienda 8 (Clinica Beta)
+(8, 'DB-PAZIENTI', 'Database', 'Cartelle Cliniche Elettroniche (EHR)', 'DC Clinica', 'Critica'),
+(8, 'FW-HOSP-01', 'Firewall', 'Rete Ospedaliera', 'DC Clinica', 'Critica'),
+(8, 'SRV-IMAGING', 'Server Fisico', 'Archiviazione Immagini Mediche (PACS)', 'DC Clinica', 'Alta'),
+(8, 'SW-APP-03', 'Applicazione Software', 'Gestione Prenotazioni', 'Cloud', 'Media'),
+-- Azienda 9 (Media Digital S.p.A.)
+(9, 'SRV-STREAM-01', 'Server Virtuale', 'Piattaforma Streaming Video', 'Cloud CDN', 'Alta'),
+(9, 'DB-CONTENUTI', 'Database', 'Metadata Contenuti', 'Cloud', 'Alta'),
+(9, 'NAS-EDIT-01', 'Dispositivo Storage', 'Storage Editing Video', 'Sede Redazione', 'Media'),
+-- Azienda 10 (Web Hosting Pro S.r.l.)
+(10, 'FW-CORE-01', 'Firewall Hardware', 'Core Network Protection', 'DC Principal', 'Critica'),
+(10, 'SRV-WEB-FARM', 'Server Fisico', 'Server Farm di Hosting', 'DC Principal', 'Critica'),
+(10, 'SW-PANEL-C', 'Applicazione Software', 'Pannello di Controllo Clienti', 'Cloud', 'Alta'),
+(10, 'SRV-EMAIL-01', 'Server Virtuale', 'Server Posta Elettronica', 'DC Secondario', 'Alta'),
+-- Azienda 11 (Food Supply Chain Srl)
+(11, 'SRV-MAG-01', 'Server Fisico', 'Sistema Gestione Magazzino (WMS)', 'Magazzino Centrale', 'Critica'),
+(11, 'SCANNER-RF', 'Dispositivo IoT', 'Lettori Barcode/RFID', 'Magazzino Centrale', 'Media'),
+(11, 'SW-QUAL-01', 'Applicazione Software', 'Controllo Qualità', 'Sede Uff.', 'Alta'),
+-- Azienda 12 (Finanza Sicura S.p.A.)
+(12, 'DB-TRANSACT', 'Database', 'Transazioni Finanziarie', 'DC Cifrato', 'Critica'),
+(12, 'FW-BANK-01', 'Firewall Hardware', 'Rete Bancaria', 'DC Cifrato', 'Critica'),
+(12, 'SRV-TRADING', 'Server Fisico', 'Piattaforma Trading', 'DC Cifrato', 'Alta'),
+(12, 'SW-RISK', 'Applicazione Software', 'Analisi Rischio', 'Cloud Esterno', 'Alta'),
+-- Azienda 13 (Acqua Bene Comune)
+(13, 'SCADA-WATER', 'Sistema Industriale', 'Controllo Impianti Idrici', 'Impianto A', 'Critica'),
+(13, 'SRV-GIS', 'Server Virtuale', 'Mappatura Rete', 'DC Sede', 'Alta'),
+(13, 'FW-TELE-01', 'Firewall Industriale', 'Rete Telecontrollo', 'Impianto B', 'Critica'),
+-- Azienda 14 (Aero Tecnica S.p.A.)
+(14, 'SRV-MANUT-01', 'Server Fisico', 'Sistema Gestione Manutenzione (MRO)', 'Hangar 1', 'Critica'),
+(14, 'DB-AIRCRAFT', 'Database', 'Dati Componenti Aerei', 'Cloud Sicuro', 'Alta'),
+(14, 'SW-CERT-01', 'Applicazione Software', 'Certificazioni Aeronavigabilità', 'Sede Tech', 'Critica'),
+(14, 'NAS-PROJ-01', 'Dispositivo Storage', 'Disegni Tecnici', 'Sede Progettazione', 'Media'),
+-- Azienda 15 (Logistica Veloce S.r.l.)
+(15, 'SRV-ORDINI-01', 'Server Fisico', 'Elaborazione Ordini', 'DC Esterno', 'Alta'),
+(15, 'FW-LGST-01', 'Firewall', 'Perimetro Logistico', 'DC Esterno', 'Alta'),
+(15, 'DB-CLIENTI', 'Database', 'Anagrafica Clienti B2B', 'DC Esterno', 'Media')
 ON CONFLICT (codice_asset) DO NOTHING;
 
 
--- Popolamento SERVIZIO (impostate ameno 2 tipologie per azienda)
+---
+-- [NUOVO] 4. ASSET COMPLIANCE (GAP ANALYSIS)
+---
+\echo 'Associazione Asset-Controlli (Compliance)...'
+
+-- Usiamo delle subquery per prendere gli ID corretti anche se cambiano i numeri seriali.
+-- Simuliamo alcuni scenari per le aziende principali.
+
+INSERT INTO ASSET_COMPLIANCE (asset_id, sottocategoria_id, stato_conformita, note_audit) VALUES
+-- 1. IDRO SPA: Firewall di Produzione (FW-PRD-01)
+(
+    (SELECT asset_id FROM ASSET WHERE codice_asset = 'FW-PRD-01'), 
+    (SELECT sottocategoria_id FROM ACN_SOTTOCATEGORIA WHERE codice = 'ID.AM-1'), -- Inventario
+    'Conforme', 
+    'Presente in CMDB aziendale'
+),
+(
+    (SELECT asset_id FROM ASSET WHERE codice_asset = 'FW-PRD-01'), 
+    (SELECT sottocategoria_id FROM ACN_SOTTOCATEGORIA WHERE codice = 'PR.AC-5'), -- MFA
+    'Non Conforme', 
+    'MFA non attiva su interfaccia di management'
+),
+(
+    (SELECT asset_id FROM ASSET WHERE codice_asset = 'FW-PRD-01'), 
+    (SELECT sottocategoria_id FROM ACN_SOTTOCATEGORIA WHERE codice = 'DE.AE-1'), -- Log
+    'Conforme', 
+    'Syslog inviati al SIEM centrale'
+),
+
+-- 1. IDRO SPA: Server ERP (SRV-ERP-01)
+(
+    (SELECT asset_id FROM ASSET WHERE codice_asset = 'SRV-ERP-01'), 
+    (SELECT sottocategoria_id FROM ACN_SOTTOCATEGORIA WHERE codice = 'PR.DS-1'), -- Cifratura disco
+    'Conforme', 
+    'Bitlocker attivo'
+),
+
+-- 4. ENERGY POWER (SCADA-CTRL-01 - Infrastruttura Critica)
+(
+    (SELECT asset_id FROM ASSET WHERE codice_asset = 'SCADA-CTRL-01'), 
+    (SELECT sottocategoria_id FROM ACN_SOTTOCATEGORIA WHERE codice = 'PR.AC-1'), -- IAM
+    'In Corso', 
+    'Migrazione utenti in corso'
+),
+(
+    (SELECT asset_id FROM ASSET WHERE codice_asset = 'SCADA-CTRL-01'), 
+    (SELECT sottocategoria_id FROM ACN_SOTTOCATEGORIA WHERE codice = 'ID.AM-1'), -- Inventario
+    'Conforme', 
+    'Asset taggato fisicamente'
+),
+
+-- 7. COMUNE DI ALPHA (Anagrafe - SRV-ANAG-01)
+(
+    (SELECT asset_id FROM ASSET WHERE codice_asset = 'SRV-ANAG-01'), 
+    (SELECT sottocategoria_id FROM ACN_SOTTOCATEGORIA WHERE codice = 'PR.DS-1'), -- Cifratura
+    'Non Conforme', 
+    'Dischi non cifrati, rischio GDPR'
+),
+
+-- 12. FINANZA SICURA (DB-TRANSACT)
+(
+    (SELECT asset_id FROM ASSET WHERE codice_asset = 'DB-TRANSACT'), 
+    (SELECT sottocategoria_id FROM ACN_SOTTOCATEGORIA WHERE codice = 'PR.DS-1'), -- Cifratura Rest
+    'Conforme', 
+    'TDE (Transparent Data Encryption) attivo su DB'
+),
+(
+    (SELECT asset_id FROM ASSET WHERE codice_asset = 'DB-TRANSACT'), 
+    (SELECT sottocategoria_id FROM ACN_SOTTOCATEGORIA WHERE codice = 'PR.DS-2'), -- Cifratura Transito
+    'Conforme', 
+    'Connessioni solo via TLS 1.3'
+)
+ON CONFLICT (asset_id, sottocategoria_id) DO NOTHING;
+
+
+---
+-- 5. SERVIZI (LIVELLO 2)
+---
+\echo 'Inserimento Servizi...'
+
 INSERT INTO SERVIZIO (azienda_id, nome_servizio, descrizione, criticita_impatto, responsabile_id) VALUES
 -- ID 1-4: Azienda 1 (Idro Spa)
 (1, 'Servizio Transazioni Finanziarie', 'Gestione pagamenti clienti', 'Alto', 1), -- ID 1
@@ -181,9 +303,11 @@ INSERT INTO SERVIZIO (azienda_id, nome_servizio, descrizione, criticita_impatto,
 (15, 'Gestione Clienti B2B', 'Accesso a portale clienti e dati anagrafici', 'Medio', 2) -- ID 37
 ON CONFLICT (nome_servizio) DO NOTHING;
 
+
 ---
--- TABELLE PONTE (RELAZIONI N:M)
+-- 6. TABELLE PONTE (RELAZIONI N:M)
 ---
+\echo 'Inserimento Relazioni Servizi-Asset e Servizi-Fornitori...'
 
 -- Popolamento Ponte N:M (Servizi -> Asset)
 INSERT INTO SERVIZIO_ASSET (servizio_id, asset_id, tipo_dipendenza) VALUES
@@ -307,4 +431,4 @@ INSERT INTO DIPENDENZA_TERZI (servizio_id, fornitore_id, criticita_dipendenza) V
 (37, 4, 'Importante') -- Gestione Clienti -> SecurNet
 ON CONFLICT (servizio_id, fornitore_id) DO NOTHING; 
 
-\echo 'Dati inseriti (o ignorati se presenti).'
+\echo 'Dati inseriti correttamente.'
