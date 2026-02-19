@@ -11,4 +11,6 @@
     ├── 03_POPOLAMENTO_DATA.sql
     ├── 04_REPORTS.sql
     ├── 05_EXPORT_DATA_ACN_CSV.sql
-    └── CLEANUP.sql
+    ├── CLEANUP.sql
+    └── DELETE_DB.sql
+
