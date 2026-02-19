@@ -1,4 +1,4 @@
-# 🚀 Registro Asset e Servizi (Conformità NIS2/ACN e Framework FNCS)
+# 🚀 Registro Asset e Servizi (Conformità NIS2/ACN e Framework Nazionale per la Cybersecurity e la Data Protection)
 
 Questo progetto contiene lo schema di un database PostgreSQL e gli script SQL necessari per creare, popolare, gestire ed esportare un registro di asset e servizi per determinate aziende, come richiesto dalla direttiva NIS2 e per il reporting ACN. 
 
