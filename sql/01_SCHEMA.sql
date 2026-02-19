@@ -1,7 +1,6 @@
 -- #################################################################
 -- # SCRIPT 01: SCHEMA (DDL) (Idempotente)
 -- # Creazione delle tabelle in ordine di dipendenza
--- # Creazioni di indici di performance e ricerca
 -- #################################################################
 \echo 'Creazione tabelle (con verifica di esistenza)...'
 
@@ -21,8 +20,6 @@ CREATE TABLE IF NOT EXISTS RESPONSABILE (
     contatto_acn BOOLEAN NOT NULL DEFAULT FALSE, 
     email VARCHAR(100) NOT NULL UNIQUE
 );
-
--- Ottimizza la "QUERY DI ESTRAZIONE 3: Elenco Punti di Contatto ACN"
 CREATE INDEX IF NOT EXISTS idx_responsabile_contatto_acn ON RESPONSABILE (contatto_acn);
 
 -- TABELLA 3: FORNITORE_TERZO (Anagrafica fornitori esterni)
@@ -32,7 +29,7 @@ CREATE TABLE IF NOT EXISTS FORNITORE_TERZO (
     tipo_servizio VARCHAR(50) 
 );
 
--- TABELLA 4: ASSET (inventario)
+-- TABELLA 4: ASSET (Dipende da AZIENDA)
 CREATE TABLE IF NOT EXISTS ASSET (
     asset_id SERIAL PRIMARY KEY,
     azienda_id INT NOT NULL REFERENCES AZIENDA(azienda_id), 
@@ -42,62 +39,20 @@ CREATE TABLE IF NOT EXISTS ASSET (
     localizzazione VARCHAR(100),
     criticita VARCHAR(20) NOT NULL CHECK (criticita IN ('Alta', 'Media', 'Bassa', 'Critica'))
 );
--- Ottimizza la VIEW 'report_asset_critici_acn' (filtro/ordine)
 CREATE INDEX IF NOT EXISTS idx_asset_codice_critico ON ASSET (codice_asset, criticita);
--- --- NUOVA SEZIONE: STRUTTURA FRAMEWORK NAZIONALE (ACN) ---
 
--- TABELLA 5: ACN_FUNZIONE (Livello Alto: Identify, Protect...)
-CREATE TABLE IF NOT EXISTS ACN_FUNZIONE (
-    funzione_id SERIAL PRIMARY KEY,
-    codice VARCHAR(10) NOT NULL UNIQUE, -- Es. 'ID', 'PR'
-    nome VARCHAR(50) NOT NULL           -- Es. 'Identificazione', 'Protezione'
-);
-
--- TABELLA 6: ACN_CATEGORIA (Es. Asset Management, Access Control...)
-CREATE TABLE IF NOT EXISTS ACN_CATEGORIA (
-    categoria_id SERIAL PRIMARY KEY,
-    funzione_id INT NOT NULL REFERENCES ACN_FUNZIONE(funzione_id),
-    codice VARCHAR(20) NOT NULL, -- Es. 'ID.AM', 'PR.AC'
-    nome VARCHAR(100) NOT NULL,
-    UNIQUE(codice)
-);
-
--- TABELLA 7: ACN_SOTTOCATEGORIA (Il requisito specifico richiesto dal docente)
-CREATE TABLE IF NOT EXISTS ACN_SOTTOCATEGORIA (
-    sottocategoria_id SERIAL PRIMARY KEY,
-    categoria_id INT NOT NULL REFERENCES ACN_CATEGORIA(categoria_id),
-    codice VARCHAR(20) NOT NULL, -- Es. 'ID.AM-1'
-    descrizione TEXT NOT NULL,
-    livello_minimo VARCHAR(20) CHECK (livello_minimo IN ('Base', 'Essenziale', 'Importante'))
-);
-
--- TABELLA 8: ASSET_COMPLIANCE (Gap Analysis)
--- Collega l'Asset alla Sottocategoria specifica
-CREATE TABLE IF NOT EXISTS ASSET_COMPLIANCE (
-    compliance_id SERIAL PRIMARY KEY,
-    asset_id INT NOT NULL REFERENCES ASSET(asset_id) ON DELETE CASCADE,
-    sottocategoria_id INT NOT NULL REFERENCES ACN_SOTTOCATEGORIA(sottocategoria_id),
-    stato_conformita VARCHAR(20) NOT NULL 
-        CHECK (stato_conformita IN ('Conforme', 'Non Conforme', 'Non Applicabile', 'In Corso')),
-    data_verifica DATE DEFAULT CURRENT_DATE,
-    note_audit TEXT,
-    UNIQUE(asset_id, sottocategoria_id)
-);
--- TABELLA 9: SERVIZIO (Dipende da AZIENDA e RESPONSABILE)
+-- TABELLA 5: SERVIZIO (Dipende da AZIENDA e RESPONSABILE)
 CREATE TABLE IF NOT EXISTS SERVIZIO (
     servizio_id SERIAL PRIMARY KEY,
     azienda_id INT NOT NULL REFERENCES AZIENDA(azienda_id),
-    --Aggiunto UNIQUE per permettere l'idempotenza degli INSERT
     nome_servizio VARCHAR(100) NOT NULL UNIQUE, 
     descrizione TEXT,
     criticita_impatto VARCHAR(20) NOT NULL, 
     responsabile_id INT REFERENCES RESPONSABILE(responsabile_id)
 );
-
--- Indice su FK (responsabile_id) per ottimizzare i JOIN con la tabella RESPONSABILE
 CREATE INDEX IF NOT EXISTS idx_servizio_responsabile ON SERVIZIO (responsabile_id);
 
--- TABELLA 10: ASSET_STORICO (Log per modifiche su ASSET)
+-- TABELLA 6: ASSET_STORICO (Log per modifiche su ASSET)
 CREATE TABLE IF NOT EXISTS ASSET_STORICO (
     asset_storico_id SERIAL PRIMARY KEY,
     asset_id INT NOT NULL, 
@@ -107,7 +62,7 @@ CREATE TABLE IF NOT EXISTS ASSET_STORICO (
     dati_precedenti JSONB 
 );
 
--- TABELLA 11: SERVIZIO_ASSET (Juction Table tra SERVIZIO e ASSET)
+-- TABELLA 7: SERVIZIO_ASSET (Junction Table)
 CREATE TABLE IF NOT EXISTS SERVIZIO_ASSET (
     servizio_asset_id SERIAL PRIMARY KEY,
     servizio_id INT NOT NULL REFERENCES SERVIZIO(servizio_id), 
@@ -116,7 +71,7 @@ CREATE TABLE IF NOT EXISTS SERVIZIO_ASSET (
     UNIQUE (servizio_id, asset_id)
 );
 
--- TABELLA 12: DIPENDENZA_TERZI (Junction Table tra SERVIZIO e FORNITORE_TERZO)
+-- TABELLA 8: DIPENDENZA_TERZI (Junction Table)
 CREATE TABLE IF NOT EXISTS DIPENDENZA_TERZI (
     dipendenza_id SERIAL PRIMARY KEY,
     servizio_id INT NOT NULL REFERENCES SERVIZIO(servizio_id),         
@@ -125,4 +80,40 @@ CREATE TABLE IF NOT EXISTS DIPENDENZA_TERZI (
     UNIQUE (servizio_id, fornitore_id)
 );
 
-\echo 'Tabelle create con successo.'
+-- TABELLA 9: FNCS_SUBCATEGORIA (Catalogo dei controlli del Framework)
+CREATE TABLE IF NOT EXISTS FNCS_SUBCATEGORIA (
+    subcategoria_id SERIAL PRIMARY KEY,
+    funzione VARCHAR(50) NOT NULL, -- E.g., 'Identify (ID)', 'Protect (PR)'
+    categoria VARCHAR(100) NOT NULL, -- E.g., 'Asset Management (ID.AM)'
+    codice_subcategoria VARCHAR(20) NOT NULL UNIQUE, -- E.g., 'ID.AM-1'
+    descrizione TEXT NOT NULL
+);
+
+-- TABELLA 10: PROFILO_AZIENDALE (Profilo Attuale o Target dell'azienda)
+CREATE TABLE IF NOT EXISTS PROFILO_AZIENDALE (
+    profilo_id SERIAL PRIMARY KEY,
+    azienda_id INT NOT NULL REFERENCES AZIENDA(azienda_id),
+    tipo_profilo VARCHAR(20) NOT NULL CHECK (tipo_profilo IN ('Attuale', 'Target')),
+    data_rilevazione DATE DEFAULT CURRENT_DATE,
+    UNIQUE (azienda_id, tipo_profilo)
+);
+
+-- TABELLA 11: PROFILO_SUBCATEGORIA (Stato di implementazione del controllo nel Profilo)
+CREATE TABLE IF NOT EXISTS PROFILO_SUBCATEGORIA (
+    profilo_subcategoria_id SERIAL PRIMARY KEY,
+    profilo_id INT NOT NULL REFERENCES PROFILO_AZIENDALE(profilo_id),
+    subcategoria_id INT NOT NULL REFERENCES FNCS_SUBCATEGORIA(subcategoria_id),
+    stato_implementazione VARCHAR(50) NOT NULL, -- E.g., 'Non Implementato', 'Parziale', 'Completato'
+    UNIQUE (profilo_id, subcategoria_id)
+);
+
+-- TABELLA 12: ASSET_SUBCATEGORIA (Associazione degli Asset ai Controlli )
+CREATE TABLE IF NOT EXISTS ASSET_SUBCATEGORIA (
+    asset_subcategoria_id SERIAL PRIMARY KEY,
+    asset_id INT NOT NULL REFERENCES ASSET(asset_id),
+    subcategoria_id INT NOT NULL REFERENCES FNCS_SUBCATEGORIA(subcategoria_id),
+    dettaglio_tecnico VARCHAR(255),
+    UNIQUE (asset_id, subcategoria_id)
+);
+
+\echo 'Tabelle create con successo (incluso Framework FNCS).'

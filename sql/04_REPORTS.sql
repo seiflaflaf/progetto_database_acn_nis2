@@ -49,10 +49,10 @@ WHERE
     AND S.azienda_id = 2; -- Filtro per isolare il report solo sull'Azienda 2 (IT Solutions Srl)
 
 
-\echo '--- QUERY 4: Conteggio Asset Critici/Alti per Tipo di Azienda ---'
--- [AGGIORNATA] Corretto 'profilo_acn' in 'profilo_target' come da nuovo schema
+\echo '--- QUERY 4: Conteggio Asset Critici/Alti per Tipo di Azienda (TUTTE LE AZIENDE) ---'
+---Query per avere una visione aggregata del rischio in base alla classificazione ufficiale ACN dell'azienda
 SELECT
-    A.profilo_target AS "Profilo_Obiettivo_ACN",
+    A.profilo_acn AS "Profilo_ACN",
     COUNT(CASE WHEN AST.criticita = 'Critica' THEN 1 END) AS "Conta_Asset_Critici",
     COUNT(CASE WHEN AST.criticita = 'Alta' THEN 1 END) AS "Conta_Asset_Alti",
     COUNT(AST.asset_id) AS "Totale_Asset_Alti_Critici"
@@ -63,7 +63,7 @@ INNER JOIN
 WHERE
     AST.criticita IN ('Alta', 'Critica')
 GROUP BY
-    A.profilo_target
+    A.profilo_acn
 ORDER BY
     "Totale_Asset_Alti_Critici" DESC;
 
@@ -114,21 +114,22 @@ GROUP BY
 ORDER BY
     "Numero_Servizi_Critici_Alti" DESC, "Responsabile" ASC;
 
-    \echo '--- QUERY 7: GAP ANALYSIS (Asset Non Conformi alla Normativa) ---'
--- Questa query dimostra l'associazione Asset-Controlli richiesta dal docente
-SELECT * FROM report_gap_analysis_acn 
-WHERE stato_conformita = 'Non Conforme';
 
-\echo '--- QUERY 8: Statistiche di Conformità per Funzione ACN ---'
--- Mostra quanto l'azienda è "coperta" sulle funzioni Identify, Protect, etc.
+\echo '--- QUERY 7: Gap Analysis Profilo Attuale vs Target (Azienda 1) ---'
+-- Mostra lo scostamento tra lo stato di sicurezza attuale e quello target richiesto come da normativa
 SELECT 
-    F.nome AS "Funzione_ACN",
-    COUNT(C.compliance_id) AS "Controlli_Verificati",
-    COUNT(CASE WHEN C.stato_conformita = 'Conforme' THEN 1 END) AS "Conformi",
-    COUNT(CASE WHEN C.stato_conformita = 'Non Conforme' THEN 1 END) AS "NON_Conformi"
-FROM ACN_FUNZIONE F
-JOIN ACN_CATEGORIA CAT ON F.funzione_id = CAT.funzione_id
-JOIN ACN_SOTTOCATEGORIA S ON CAT.categoria_id = S.categoria_id
-JOIN ASSET_COMPLIANCE C ON S.sottocategoria_id = C.sottocategoria_id
-GROUP BY F.nome
-ORDER BY F.nome;
+    FS.codice_subcategoria AS "Controllo_Framework",
+    FS.descrizione AS "Descrizione_Controllo",
+    PA_ATT.stato_implementazione AS "Stato_Attuale",
+    PA_TGT.stato_implementazione AS "Obiettivo_Target"
+FROM FNCS_SUBCATEGORIA FS
+LEFT JOIN PROFILO_SUBCATEGORIA PA_ATT ON FS.subcategoria_id = PA_ATT.subcategoria_id 
+    AND PA_ATT.profilo_id = (SELECT profilo_id FROM PROFILO_AZIENDALE WHERE azienda_id = 1 AND tipo_profilo = 'Attuale')
+LEFT JOIN PROFILO_SUBCATEGORIA PA_TGT ON FS.subcategoria_id = PA_TGT.subcategoria_id 
+    AND PA_TGT.profilo_id = (SELECT profilo_id FROM PROFILO_AZIENDALE WHERE azienda_id = 1 AND tipo_profilo = 'Target')
+ORDER BY FS.codice_subcategoria;
+
+\echo '--- QUERY 8: Elenco Asset per Controllo di Protezione Dati (PR.DS-1) ---'
+-- Mostra tutti gli asset, indipendentemente dall'azienda, che sono mappati per la crittografia dei dati
+SELECT * FROM report_mappatura_controlli_asset
+WHERE "Codice_Controllo" = 'PR.DS-1';

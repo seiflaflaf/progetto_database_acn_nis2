@@ -4,8 +4,6 @@
 -- #################################################################
 \echo 'Creazione Regole Applicative DB (Trigger e Viste)...'
 
--- FUNZIONE TRIGGER per lo storico di ASSET
--- "CREATE OR REPLACE" rende la creazione della funzione idempotente
 CREATE OR REPLACE FUNCTION log_asset_changes()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -21,49 +19,45 @@ BEGIN
     END IF;
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql; -- Imposto che il linguaggio sia interpretato come plpgsql
+$$ LANGUAGE plpgsql; 
 
-
--- 'DROP IF EXISTS' rende la creazione del trigger idempotente
 DROP TRIGGER IF EXISTS asset_audit_trigger ON ASSET;
 
--- TRIGGER per la storicizzazione di ASSET
 CREATE TRIGGER asset_audit_trigger
 BEFORE UPDATE OR DELETE ON ASSET
 FOR EACH ROW EXECUTE PROCEDURE log_asset_changes();
 
-
--- VISTA 1: Asset Critici (Esistente, utile per inventario rapido)
+-- VISTA ORIGINALE: Report ACN degli asset critici
 CREATE OR REPLACE VIEW report_asset_critici_acn AS
 SELECT
     A.codice_asset AS "ID_Asset",
     A.tipo AS "Tipo_Asset",
+    A.descrizione AS "Descrizione_Asset",
     A.criticita AS "Livello_Criticita",
     S.nome_servizio AS "Servizio_Supportato",
-    R.email AS "Email_Responsabile"
+    R.nome || ' ' || R.cognome AS "Nome_Responsabile_Servizio",
+    R.email AS "Email_Contatto"
 FROM ASSET A
-JOIN SERVIZIO_ASSET SA ON A.asset_id = SA.asset_id 
-JOIN SERVIZIO S ON SA.servizio_id = S.servizio_id   
-JOIN RESPONSABILE R ON S.responsabile_id = R.responsabile_id 
-WHERE A.azienda_id = 1 AND A.criticita IN ('Alta', 'Critica');
+INNER JOIN SERVIZIO_ASSET SA ON A.asset_id = SA.asset_id 
+INNER JOIN SERVIZIO S ON SA.servizio_id = S.servizio_id   
+INNER JOIN RESPONSABILE R ON S.responsabile_id = R.responsabile_id 
+WHERE A.azienda_id = 1 AND A.criticita IN ('Alta', 'Critica')
+ORDER BY A.criticita DESC, A.codice_asset ASC;
 
--- VISTA 2: GAP ANALYSIS (Mostra lo stato di conformità per ogni asset rispetto alle sottocategorie ACN)
-CREATE OR REPLACE VIEW report_gap_analysis_acn AS
+
+-- VISTA AGGIUNTA PER LA MAPPATURA: Report Mappatura Asset / Controlli FNCS/NIST
+CREATE OR REPLACE VIEW report_mappatura_controlli_asset AS
 SELECT 
-    A.nome_azienda,
-    ASS.codice_asset,
-    FUN.codice AS "Funzione",
-    CAT.codice AS "Categoria",
-    SUB.codice AS "Sottocategoria_ACN",
-    SUB.descrizione AS "Requisito",
-    COMP.stato_conformita,
-    COMP.note_audit
-FROM ASSET_COMPLIANCE COMP
-JOIN ASSET ASS ON COMP.asset_id = ASS.asset_id
-JOIN AZIENDA A ON ASS.azienda_id = A.azienda_id
-JOIN ACN_SOTTOCATEGORIA SUB ON COMP.sottocategoria_id = SUB.sottocategoria_id
-JOIN ACN_CATEGORIA CAT ON SUB.categoria_id = CAT.categoria_id
-JOIN ACN_FUNZIONE FUN ON CAT.funzione_id = FUN.funzione_id
-ORDER BY ASS.codice_asset, SUB.codice;
+    AZ.nome_azienda AS "Azienda",
+    A.codice_asset AS "Asset",
+    A.tipo AS "Tipo_Asset",
+    FS.codice_subcategoria AS "Codice_Controllo",
+    FS.descrizione AS "Descrizione_Controllo",
+    ASC_C.dettaglio_tecnico AS "Dettaglio_Applicazione"
+FROM ASSET A
+INNER JOIN AZIENDA AZ ON A.azienda_id = AZ.azienda_id
+INNER JOIN ASSET_SUBCATEGORIA ASC_C ON A.asset_id = ASC_C.asset_id
+INNER JOIN FNCS_SUBCATEGORIA FS ON ASC_C.subcategoria_id = FS.subcategoria_id
+ORDER BY AZ.nome_azienda, A.codice_asset;
 
 \echo 'Trigger e Viste DB create.'
